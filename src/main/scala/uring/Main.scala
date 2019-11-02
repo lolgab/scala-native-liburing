@@ -13,32 +13,10 @@ import scala.scalanative.posix.arpa.inet._
 import scala.collection.mutable
 import scala.scalanative.posix.sys.uio.iovec
 import scala.scalanative.libc.stdlib.malloc
-import scala.scalanative.runtime.Intrinsics.{
-  castObjectToRawPtr,
-  castLongToRawPtr,
-  castRawPtrToObject,
-  castRawPtrToLong
-}
 import scala.scalanative.posix.fcntl
 
 object Main {
-  val functions = mutable.Set.empty[() => Unit]
-
-  def addFunction(f: () => Unit): Long = {
-    functions += f
-    val rawptr = castObjectToRawPtr(f)
-    castRawPtrToLong(rawptr)
-  }
-
-  def runFunction(data: Long): Unit = {
-    val rawptr = castLongToRawPtr(data)
-    val f = castRawPtrToObject(rawptr).asInstanceOf[() => Unit]
-    f.apply()
-  }
-
-  implicit val z = Zone.open()
-  val ring = URing()
-  def main(args: Array[String]): Unit = {
+  def main2(args: Array[String]): Unit = {
 
     val s = socket(AF_INET, SOCK_STREAM, 0)
 
@@ -60,14 +38,15 @@ object Main {
     servaddr.sin_port = htons(8000.toUShort)
     bind(s, servaddr.asInstanceOf[Ptr[sockaddr]], sizeof[sockaddr_in].toUInt)
     listen(s, 128)
-
-    ring.poll(
+    loop.ring.poll(
       s,
       () => {
         val len = stackalloc[socklen_t]
         !len = sizeof[sockaddr_in].toUInt
+        val time = System.nanoTime()
         val client = accept(s, servaddr.asInstanceOf[Ptr[sockaddr]], len)
-        ring.poll(client, () => {
+        println(System.nanoTime() - time)
+        loop.ring.poll(client, () => {
           val iovec = malloc(sizeof[iovec]).asInstanceOf[Ptr[iovec]]
           iovec._1 = malloc(32)
           iovec._2 = 32L
@@ -79,10 +58,5 @@ object Main {
         })
       }
     )
-    while (true) {
-      val cqe = ring.waitCqe()
-      runFunction(cqe.getData())
-      ring.cqeSeen(cqe)
-    }
   }
 }

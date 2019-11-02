@@ -5,49 +5,46 @@ import scala.scalanative.posix.sys.uio._
 import scala.scalanative.posix.sys.socket._ 
 import CApi._
 import scala.scalanative.posix.pollEvents._
+import scala.scalanative.runtime.RawPtr
 
-@link("uring")
-@link("uringhelpers")
-@extern
-object CApi {
-  type __kernel_timespec = CStruct2[Long, CLongLong]
-  def io_uring_queue_init(entries: CInt, ring: Ptr[Byte], flags: CInt): CInt = extern
-  def io_uring_get_sqe(ring: Ptr[Byte]): Ptr[Byte] = extern
-  def io_uring_queue_exit(ring: Ptr[Byte]): Unit = extern
-  @name("scalanative_io_uring_cqe_seen")
-  def io_uring_cqe_seen(ring: Ptr[Byte], cqe: Ptr[Byte]): Unit = extern
-  @name("scalanative_io_uring_prep_poll_add")
-  def io_uring_prep_poll_add(sqe: Ptr[Byte], fd: CInt, poll_mask: CShort): Unit = extern
-  @name("scalanative_io_uring_prep_poll_remove")
-  def io_uring_prep_poll_remove(sqe: Ptr[Byte], user_data: Ptr[Byte]): Unit = extern
-  @name("scalanative_io_uring_prep_timeout")
-  def io_uring_prep_timeout(sqe: Ptr[Byte], ts: Ptr[__kernel_timespec], count: CInt, flags: CInt): Unit = extern
-  @name("scalanative_io_uring_prep_timeout_remove")
-  def io_uring_prep_timeout_remove(sqe: Ptr[Byte], user_data: Ptr[Byte], count: CInt): Unit = extern
-  @name("scalanative_io_uring_prep_writev")
-  def io_uring_prep_writev(sqe: Ptr[Byte], fd: CInt, iovecs: Ptr[iovec], nr_vecs: CInt, offset: CLongInt): Unit = extern
-  @name("scalanative_io_uring_prep_readv")
-  def io_uring_prep_readv(sqe: Ptr[Byte], fd: CInt, iovecs: Ptr[iovec], nr_vecs: CInt, offset: CLongInt): Unit = extern
-  def io_uring_submit(ring: Ptr[Byte]): CInt = extern
-  @name("scalanative_io_uring_wait_cqe")
-  def io_uring_wait_cqe(ring: Ptr[Byte], cqe: Ptr[Ptr[Byte]]): CInt = extern
-  @name("scalanative_io_uring_peek_cqe")
-  def io_uring_peek_cqe(ring: Ptr[Byte], cqe: Ptr[Byte]): CInt = extern
-  @name("scalanative_io_uring_cqe_get_data")
-  def io_uring_cqe_get_data(cqe: Ptr[Byte]): Long = extern
-  @name("scalanative_io_uring_sqe_set_data")
-  def io_uring_sqe_set_data(sqe: Ptr[Byte], data: Long): Unit = extern
-  @name("scalanative_io_uring_prep_accept")
-  def io_uring_prep_accept(sqe: Ptr[Byte], fd: CInt, addr: Ptr[sockaddr], addr_len: Ptr[socklen_t], flags: CInt): Unit = extern
-}
-class URing private (val ptr: Ptr[Byte]) extends AnyVal {
-  def poll(fd: Int, cb: () => Unit): Unit = {
+class URing private (val ptr: Ptr[Byte]) extends AnyVal { self =>
+  def poll(fd: Int, cb: () => Unit): RawPtr = {
     val sqe = this.sqe()
     sqe.pollAdd(fd, POLLIN)
-    val functionPtr = Main.addFunction(cb)
+    val functionPtr = callbacks += cb
     io_uring_sqe_set_data(sqe.ptr, functionPtr)
     val res = submit()
     if(res == -1) throw new Exception(s"Failed to submit on fd: $fd")
+    functionPtr
+  }
+
+  def pollCiclic(fd: Int, cb: () => Unit): RawPtr = {
+    val sqe = this.sqe()
+    sqe.pollAdd(fd, POLLIN)
+    val f = new Function0[Unit] {
+      def apply(): Unit = {
+        cb()
+        val buf = stackalloc[Long]
+        val sqe = self.sqe()
+        sqe.pollAdd(fd, POLLIN)
+        io_uring_sqe_set_data(sqe.ptr, callbacks.functionToRawPtr(this))
+        val res = submit()
+        if(res == -1) throw new Exception(s"Failed to submit on fd: $fd")
+      }
+    }
+    val functionPtr = callbacks += f
+    io_uring_sqe_set_data(sqe.ptr, functionPtr)
+    val res = submit()
+    if(res == -1) throw new Exception(s"Failed to submit on fd: $fd")
+    callbacks.functionToRawPtr(f)
+  }
+
+  def clearPoll(data: RawPtr) = {
+    val sqe = this.sqe()
+    callbacks -= data
+    sqe.pollRemove(data)
+    val res = submit()
+    if(res == -1) throw new Exception("Failed to remove fd from polling")
   }
 
   def sqe(): Sqe = new Sqe(io_uring_get_sqe(ptr))
@@ -69,16 +66,17 @@ object URing {
   def apply(entries: Int = 32)(implicit z: Zone): URing = {
     val ptr = z.alloc(1600)
     val res = io_uring_queue_init(entries, ptr, 0)
-    if(res != 0) throw new Exception("Failed to create uring")
+    if(res < 0) throw new Exception("Failed to create uring")
     new URing(ptr)
   }
 }
 class Sqe (val ptr: Ptr[Byte]) extends AnyVal {
   def pollAdd(fd: Int, pollMask: Short) = io_uring_prep_poll_add(ptr, fd, pollMask)
+  def pollRemove(data: RawPtr) = io_uring_prep_poll_remove(ptr, data)
 }
 object Sqe {
   
 }
 class Cqe (val ptr: Ptr[Byte]) extends AnyVal {
-  def getData(): Long = io_uring_cqe_get_data(ptr)
+  def getData(): RawPtr = io_uring_cqe_get_data(ptr)
 }
