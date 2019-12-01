@@ -1,8 +1,12 @@
 package uring
 
-import scala.scalanative.runtime.Intrinsics.{castObjectToRawPtr, castRawPtrToObject, castRawPtrToLong, castLongToRawPtr}
+import scala.scalanative.runtime.Intrinsics.{
+  castObjectToRawPtr,
+  castRawPtrToObject,
+  castRawPtrToLong,
+  castLongToRawPtr
+}
 import scala.collection.mutable
-import scala.scalanative.runtime.RawPtr
 
 object callbacks {
   private val callbacks = mutable.Set.empty[() => Unit]
@@ -10,27 +14,27 @@ object callbacks {
   @inline def nonEmpty: Boolean = callbacks.nonEmpty
 
   @inline
-  def rawPtrToFunction(rawptr: RawPtr): () => Unit = {
-    castRawPtrToObject(rawptr).asInstanceOf[() => Unit]
+  def longToFunction(long: Long): () => Unit = {
+    castRawPtrToObject(castLongToRawPtr(long)).asInstanceOf[() => Unit]
   }
 
   @inline
-  def functionToRawPtr(f: () => Unit): RawPtr =
-    castObjectToRawPtr(f)
+  def functionToLong(f: () => Unit): Long =
+    castRawPtrToLong(castObjectToRawPtr(f))
 
-  def +=(f: () => Unit): RawPtr = {
+  def +=(f: () => Unit): Long = {
     callbacks += f
-    functionToRawPtr(f)
+    functionToLong(f)
   }
 
   def -=(f: () => Unit): Unit = callbacks -= f
 
-  def -=(data: RawPtr): Unit = {
-    val f = rawPtrToFunction(data)
+  def -=(data: Long): Unit = {
+    val f = longToFunction(data)
     callbacks -= f
   }
 
-  def apply(data: RawPtr): () => Unit = {
-    castRawPtrToObject(data).asInstanceOf[() => Unit]
+  def apply(data: Long): () => Unit = {
+    longToFunction(data).asInstanceOf[() => Unit]
   }
 }

@@ -2,3 +2,4 @@ target
 .bloop
 .metals
 lowered.hnir
+.DS_Store
