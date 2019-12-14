@@ -15,12 +15,28 @@ object loop {
     scala.scalanative.runtime.loop()
     while (callbacks.nonEmpty) {
       val cqe = ring.waitCqe()
-      callbacks(cqe.data)()
+      callbacks(cqe.data)(cqe.res)
       ring.cqeSeen(cqe)
       scala.scalanative.runtime.loop()
     }
   }
 
-  def readAsync(cb: (Ptr[Byte], Long) => Unit): Unit = ???
+  def runOnceNonBlocking(): Unit = {
+    scala.scalanative.runtime.loop()
+    if (callbacks.nonEmpty) {
+      val cqe = ring.peekCqe()
+      callbacks(cqe.data)(cqe.res)
+      ring.cqeSeen(cqe)
+      scala.scalanative.runtime.loop()
+    }
+  }
+
+  // def readAsync(fd: Int, cb: (Ptr[Byte], Long) => Unit): Unit = {
+  //   val f = () => {}
+  //   val beforeSubmit: Sqe => Unit = sqe => {
+  //     sqe.prepReadv(fd)
+  //   }
+  //   ring.poll(fd, f)
+  // }
   def writeAsync(cb: (Ptr[Byte], Long) => Unit): Unit = ???
 }

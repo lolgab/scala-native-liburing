@@ -8,6 +8,7 @@ import scala.scalanative.posix.sys.socket._
 @extern
 object CApi {
   type __kernel_timespec = CStruct2[Long, Long]
+  type io_uring_cqe = CStruct3[Long, Int, Int]
   type itimerspec = CStruct2[__kernel_timespec, __kernel_timespec]
   def timerfd_create(clockid: CInt, flags: CInt): CInt = extern
   def timerfd_settime(
@@ -21,7 +22,7 @@ object CApi {
   def io_uring_get_sqe(ring: Ptr[Byte]): Ptr[Byte] = extern
   def io_uring_queue_exit(ring: Ptr[Byte]): Unit = extern
   @name("scalanative_io_uring_cqe_seen")
-  def io_uring_cqe_seen(ring: Ptr[Byte], cqe: Ptr[Byte]): Unit = extern
+  def io_uring_cqe_seen(ring: Ptr[Byte], cqe: Ptr[io_uring_cqe]): Unit = extern
   @name("scalanative_io_uring_prep_poll_add")
   def io_uring_prep_poll_add(
       sqe: Ptr[Byte],
@@ -62,9 +63,11 @@ object CApi {
   ): Unit = extern
   def io_uring_submit(ring: Ptr[Byte]): CInt = extern
   @name("scalanative_io_uring_wait_cqe")
-  def io_uring_wait_cqe(ring: Ptr[Byte], cqe: Ptr[Ptr[Byte]]): CInt = extern
+  def io_uring_wait_cqe(ring: Ptr[Byte], cqe: Ptr[Ptr[io_uring_cqe]]): CInt =
+    extern
   @name("scalanative_io_uring_peek_cqe")
-  def io_uring_peek_cqe(ring: Ptr[Byte], cqe: Ptr[Byte]): CInt = extern
+  def io_uring_peek_cqe(ring: Ptr[Byte], cqe: Ptr[Ptr[io_uring_cqe]]): CInt =
+    extern
   @name("scalanative_io_uring_cqe_get_data")
   def io_uring_cqe_get_data(cqe: Ptr[Byte]): Long = extern
   @name("scalanative_io_uring_sqe_set_data")

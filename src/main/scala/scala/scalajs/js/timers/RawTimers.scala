@@ -35,8 +35,8 @@ object RawTimers {
     *          to [[clearTimeout]].
     */
   def setTimeout(handler: () => Unit, interval: Double): SetTimeoutHandle = {
-    val f = new Function0[Unit] {
-      def apply(): Unit = {
+    val f = new Function1[Int, Unit] {
+      def apply(res: Int): Unit = {
         handler()
         callbacks -= this
       }
@@ -83,7 +83,7 @@ object RawTimers {
     val fd = CApi.timerfd_create(CLOCK_MONOTONIC, 0)
     if (fd < 0) throw new Exception("Failed to create timerfd")
     CApi.timerfd_settime(fd, 0, itimerspec, null)
-    val f = () => {
+    val f = (res: Int) => {
       val buf = stackalloc[Long]
       scalanative.posix.unistd.read(fd, buf, 8)
       handler()

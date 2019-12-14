@@ -64,5 +64,5 @@ extern void scalanative_io_uring_prep_accept(struct io_uring_sqe *sqe, int fd,
 }
 extern size_t scalanative_io_uring_size()
 {
-  return sizeof(io_uring);
+  return sizeof(struct io_uring);
 }
