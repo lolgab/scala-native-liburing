@@ -74,10 +74,7 @@ object Main {
     loop.ring.pollCiclic(
       s,
       new Function1[Int, Unit] {
-        def apply(res: Int) = {
-          val len = stackalloc[socklen_t]
-          !len = sizeof[sockaddr_in].toUInt
-          val client = accept(s, servaddr.asInstanceOf[Ptr[sockaddr]], len)
+        def apply(client: Int) = {
           val iovec = malloc(sizeof[iovec]).asInstanceOf[Ptr[iovec]]
           iovec._1 = malloc(4096L)
           iovec._2 = 4096L
@@ -104,7 +101,11 @@ object Main {
           )
         }
       },
-      _.pollAdd(s, POLLIN)
+      sqe => {
+        val len = stackalloc[socklen_t]
+        !len = sizeof[sockaddr_in].toUInt
+        sqe.prepAccept(s, servaddr.asInstanceOf[Ptr[sockaddr]], len, 0)
+      }
     )
   }
 }

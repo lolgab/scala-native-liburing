@@ -91,6 +91,13 @@ class Sqe(val ptr: Ptr[Byte]) extends AnyVal {
       nr_vecs: Int,
       offset: Long
   ): Unit = io_uring_prep_writev(ptr, fd, iovecs, nr_vecs, offset)
+
+  def prepAccept(
+      fd: Int,
+      addr: Ptr[sockaddr],
+      addrLen: Ptr[socklen_t],
+      flags: Int
+  ): Unit = io_uring_prep_accept(ptr, fd, addr, addrLen, flags)
 }
 object Sqe {}
 class Cqe(val ptr: Ptr[io_uring_cqe]) extends AnyVal {
