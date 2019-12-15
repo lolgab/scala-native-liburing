@@ -28,25 +28,13 @@ class URing private (val ptr: Ptr[Byte]) extends AnyVal { self =>
       cb: Int => Unit,
       beforeSubmit: Sqe => Unit = _ => ()
   ): Long = {
-    val sqe = this.sqe()
-    sqe.pollAdd(fd, POLLIN)
     val f = new Function1[Int, Unit] {
       def apply(res: Int): Unit = {
         cb(res)
-        val sqe = self.sqe()
-        sqe.pollAdd(fd, POLLIN)
-        sqe.setData(callbacks.functionToLong(this))
-        beforeSubmit(sqe)
-        val result = submit()
-        if (result == -1) throw new Exception(s"Failed to submit on fd: $fd")
+        poll(fd, this, beforeSubmit)
       }
     }
-    val functionPtr: Long = callbacks += f
-    sqe.setData(functionPtr)
-    beforeSubmit(sqe)
-    val res = submit()
-    if (res == -1) throw new Exception(s"Failed to submit on fd: $fd")
-    callbacks.functionToLong(f)
+    poll(fd, f, beforeSubmit)
   }
 
   def clearPoll(data: Long) = {

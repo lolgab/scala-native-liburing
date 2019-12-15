@@ -71,7 +71,7 @@ object Main {
       malloc(sizeof[iovec]).asInstanceOf[Ptr[iovec]]
     writeIovec._1 = response
     writeIovec._2 = strlen(response)
-    loop.ring.poll(
+    loop.ring.pollCiclic(
       s,
       new Function1[Int, Unit] {
         def apply(res: Int) = {
@@ -102,7 +102,6 @@ object Main {
             },
             _.prepReadv(client, iovec, 1, 0)
           )
-          loop.ring.poll(s, this, _.pollAdd(s, POLLIN))
         }
       },
       _.pollAdd(s, POLLIN)
