@@ -15,7 +15,7 @@ class URing private (val ptr: Ptr[Byte]) extends AnyVal { self =>
   ): Long = {
     val sqe = this.sqe()
     beforeSubmit(sqe)
-    sqe.pollAdd(fd, POLLIN)
+    // sqe.pollAdd(fd, POLLIN)
     val functionPtr = callbacks += cb
     sqe.setData(functionPtr)
     val res = submit()
@@ -28,25 +28,13 @@ class URing private (val ptr: Ptr[Byte]) extends AnyVal { self =>
       cb: Int => Unit,
       beforeSubmit: Sqe => Unit = _ => ()
   ): Long = {
-    val sqe = this.sqe()
-    sqe.pollAdd(fd, POLLIN)
     val f = new Function1[Int, Unit] {
       def apply(res: Int): Unit = {
         cb(res)
-        val sqe = self.sqe()
-        sqe.pollAdd(fd, POLLIN)
-        sqe.setData(callbacks.functionToLong(this))
-        beforeSubmit(sqe)
-        val result = submit()
-        if (result == -1) throw new Exception(s"Failed to submit on fd: $fd")
+        poll(fd, this, beforeSubmit)
       }
     }
-    val functionPtr: Long = callbacks += f
-    sqe.setData(functionPtr)
-    beforeSubmit(sqe)
-    val res = submit()
-    if (res == -1) throw new Exception(s"Failed to submit on fd: $fd")
-    callbacks.functionToLong(f)
+    poll(fd, f, beforeSubmit)
   }
 
   def clearPoll(data: Long) = {
@@ -96,6 +84,20 @@ class Sqe(val ptr: Ptr[Byte]) extends AnyVal {
 
   def prepReadv(fd: Int, iovecs: Ptr[iovec], nr_vecs: Int, offset: Long): Unit =
     io_uring_prep_readv(ptr, fd, iovecs, nr_vecs, offset)
+
+  def prepWritev(
+      fd: Int,
+      iovecs: Ptr[iovec],
+      nr_vecs: Int,
+      offset: Long
+  ): Unit = io_uring_prep_writev(ptr, fd, iovecs, nr_vecs, offset)
+
+  def prepAccept(
+      fd: Int,
+      addr: Ptr[sockaddr],
+      addrLen: Ptr[socklen_t],
+      flags: Int
+  ): Unit = io_uring_prep_accept(ptr, fd, addr, addrLen, flags)
 }
 object Sqe {}
 class Cqe(val ptr: Ptr[io_uring_cqe]) extends AnyVal {
