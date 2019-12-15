@@ -15,7 +15,7 @@ class URing private (val ptr: Ptr[Byte]) extends AnyVal { self =>
   ): Long = {
     val sqe = this.sqe()
     beforeSubmit(sqe)
-    sqe.pollAdd(fd, POLLIN)
+    // sqe.pollAdd(fd, POLLIN)
     val functionPtr = callbacks += cb
     sqe.setData(functionPtr)
     val res = submit()
@@ -96,6 +96,13 @@ class Sqe(val ptr: Ptr[Byte]) extends AnyVal {
 
   def prepReadv(fd: Int, iovecs: Ptr[iovec], nr_vecs: Int, offset: Long): Unit =
     io_uring_prep_readv(ptr, fd, iovecs, nr_vecs, offset)
+
+  def prepWritev(
+      fd: Int,
+      iovecs: Ptr[iovec],
+      nr_vecs: Int,
+      offset: Long
+  ): Unit = io_uring_prep_writev(ptr, fd, iovecs, nr_vecs, offset)
 }
 object Sqe {}
 class Cqe(val ptr: Ptr[io_uring_cqe]) extends AnyVal {
