@@ -74,14 +74,17 @@ object Main {
     loop.ring.pollCiclic(
       s,
       new Function1[Int, Unit] {
-        def apply(client: Int) = {
+        def apply(sRes: Int) = {
           val iovec = malloc(sizeof[iovec]).asInstanceOf[Ptr[iovec]]
           iovec._1 = malloc(4096L)
           iovec._2 = 4096L
+          val len = stackalloc[socklen_t]
+          !len = sizeof[sockaddr_in].toUInt
+          val client = accept(s, servaddr.asInstanceOf[Ptr[sockaddr]], len)
           loop.ring.poll(
             client,
             new Function1[Int, Unit] {
-              def apply(res: Int) = {
+              def apply(readBytes: Int) = {
                 val request = HttpParser.parseRequest(iovec._1, iovec._2)
                 request match {
                   case InvalidRequest    =>
@@ -94,18 +97,15 @@ object Main {
                         _.prepWritev(client, writeIovec, 1, 0)
                       )
                 }
-                loop.ring.poll(client, this, _.prepReadv(client, iovec, 1, res))
+                loop.ring
+                  .poll(client, this, _.prepReadv(client, iovec, 1, readBytes))
               }
             },
             _.prepReadv(client, iovec, 1, 0)
           )
         }
       },
-      sqe => {
-        val len = stackalloc[socklen_t]
-        !len = sizeof[sockaddr_in].toUInt
-        sqe.prepAccept(s, servaddr.asInstanceOf[Ptr[sockaddr]], len, 0)
-      }
+      _.pollAdd(s, POLLIN)
     )
   }
 }
