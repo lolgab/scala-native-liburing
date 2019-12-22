@@ -1,16 +1,18 @@
 package uring
 
 import scala.scalanative.unsafe._
-
-object loop {
-  private val globalZone = Zone.open()
+object Loop {
+  var loop: Loop = new Loop()
   scala.scalanative.runtime.ExecutionContext.global.execute(
     new Runnable {
       def run() = loop.run()
     }
   )
-
+  def callbacks = loop.callbacks
+}
+class Loop {
   val ring = URing()
+  val callbacks = new Callbacks()
   def run(): Unit = {
     scala.scalanative.runtime.loop()
     while (callbacks.nonEmpty) {
@@ -31,12 +33,6 @@ object loop {
     }
   }
 
-  // def readAsync(fd: Int, cb: (Ptr[Byte], Long) => Unit): Unit = {
-  //   val f = () => {}
-  //   val beforeSubmit: Sqe => Unit = sqe => {
-  //     sqe.prepReadv(fd)
-  //   }
-  //   ring.poll(fd, f)
-  // }
+  def readAsync(fd: Int, cb: (Ptr[Byte], Long) => Unit): Unit = ???
   def writeAsync(cb: (Ptr[Byte], Long) => Unit): Unit = ???
 }

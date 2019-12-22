@@ -8,7 +8,7 @@ import scala.scalanative.runtime.Intrinsics.{
 }
 import scala.collection.mutable
 
-object callbacks {
+class Callbacks {
   private val callbacks = mutable.Set.empty[Int => Unit]
 
   @inline def nonEmpty: Boolean = callbacks.nonEmpty

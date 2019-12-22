@@ -6,6 +6,7 @@ import scala.scalanative.posix.sys.uio._
 import scala.scalanative.posix.sys.socket._
 import CApi._
 import scala.scalanative.posix.pollEvents._
+import Loop._
 
 class URing private (val ptr: Ptr[Byte]) extends AnyVal { self =>
   def poll(

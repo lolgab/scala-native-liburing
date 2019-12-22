@@ -27,7 +27,7 @@ import httpparser.model.IncompleteRequest
 import httpparser.model.ValidRequest
 
 object Main {
-  def main(args: Array[String]): Unit = {
+  def main2(args: Array[String]): Unit = {
 
     val s = socket(AF_INET, SOCK_STREAM, 0)
 
@@ -71,7 +71,7 @@ object Main {
       malloc(sizeof[iovec]).asInstanceOf[Ptr[iovec]]
     writeIovec._1 = response
     writeIovec._2 = strlen(response)
-    loop.ring.poll(
+    Loop.loop.ring.poll(
       s,
       new Function1[Int, Unit] {
         def apply(sRes: Int) = {
@@ -81,7 +81,7 @@ object Main {
           val len = stackalloc[socklen_t]
           !len = sizeof[sockaddr_in].toUInt
           val client = accept(s, servaddr.asInstanceOf[Ptr[sockaddr]], len)
-          loop.ring.poll(
+          Loop.loop.ring.poll(
             client,
             new Function1[Int, Unit] {
               def apply(readBytes: Int) = {
@@ -90,20 +90,20 @@ object Main {
                   case InvalidRequest    =>
                   case IncompleteRequest =>
                   case RequestWithoutBody(GET, `1.1`, "/", headers, length) =>
-                    loop.ring
+                    Loop.loop.ring
                       .poll(
                         client,
                         _ => (),
                         _.prepWritev(client, writeIovec, 1, 0)
                       )
                 }
-                loop.ring
+                Loop.loop.ring
                   .poll(client, this, _.prepReadv(client, iovec, 1, readBytes))
               }
             },
             _.prepReadv(client, iovec, 1, 0)
           )
-          loop.ring.poll(s, this, _.pollAdd(s, POLLIN))
+          Loop.loop.ring.poll(s, this, _.pollAdd(s, POLLIN))
         }
       },
       _.pollAdd(s, POLLIN)

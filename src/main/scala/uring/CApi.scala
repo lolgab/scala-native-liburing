@@ -2,6 +2,7 @@ package uring
 
 import scala.scalanative.unsafe._
 import scala.scalanative.posix.sys.socket._
+import scala.scalanative.unsafe.Nat._2
 
 @link("uring")
 @link("uringhelpers")
@@ -10,6 +11,12 @@ object CApi {
   type __kernel_timespec = CStruct2[Long, Long]
   type io_uring_cqe = CStruct3[Long, Int, Int]
   type itimerspec = CStruct2[__kernel_timespec, __kernel_timespec]
+  def socketpair(
+      domain: CInt,
+      tpe: CInt,
+      protocol: CInt,
+      socket_vector: Ptr[CArray[Int, _2]]
+  ): CInt = extern
   def timerfd_create(clockid: CInt, flags: CInt): CInt = extern
   def timerfd_settime(
       fd: CInt,

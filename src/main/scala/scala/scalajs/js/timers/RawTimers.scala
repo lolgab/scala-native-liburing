@@ -13,8 +13,8 @@
 package scala.scalajs.js.timers
 
 import scalanative.unsafe._
-import uring.callbacks
 import uring._
+import Loop._
 
 /**
   *  <span class="badge badge-non-std" style="float: right;">Non-Standard</span>
